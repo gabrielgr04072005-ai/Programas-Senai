@@ -1,0 +1,72 @@
+
+#include <Stepper.h>
+
+#define e1 12
+#define e2 13
+#define e3 14
+#define e4 15
+#define Bt_liga 26
+#define led 27
+const int passosPorGiro = 2048;
+Stepper mp (passosPorGiro, e1, e3, e2, e4);
+int pin_pot = 4;
+int valor_pot = 0;
+int angulo = 0;
+int angulo_atual = 0;
+int resolucao_adc = 4095;
+int botao = 0;
+int cont = 1;
+
+void setup() {
+Serial.begin(9600);
+mp.setSpeed (12);
+pinMode(Bt_liga, INPUT_PULLDOWN);
+pinMode(led, OUTPUT);
+Serial.println("Técnicos: ");
+Serial.println("Gabriel e Heitor");
+}
+void loop()
+  {
+
+   valor_pot = analogRead(pin_pot);
+    angulo = map (valor_pot,0,resolucao_adc,-360,360);
+
+    int diferenca_angulo = angulo - angulo_atual;
+    int passos = map(diferenca_angulo,-360,360,2048,-2048);
+    botao = digitalRead(Bt_liga);
+
+    Serial.print("angulo desejado: ");
+    Serial.print(angulo);
+    Serial.print("°");
+    
+    Serial.print("angulo ATUAL: ");
+    Serial.print(angulo_atual);
+    Serial.print("°");
+    delay(500);
+
+    if(angulo_atual > 0){
+      Serial.println("horário: ");
+       delay(500);
+    } 
+    else{
+      Serial.println("anti-horário: ");
+      delay(500);
+    }
+
+    if(botao == 1){
+      mp.step(passos);
+      angulo_atual =angulo_atual + diferenca_angulo;
+
+      Serial.print("botao pressionado ");
+      delay(1000);
+    }
+
+    if(angulo_atual > 0){
+      digitalWrite(led, 1);
+    }
+    else{
+      digitalWrite(led, 0);
+    }
+
+   
+  }

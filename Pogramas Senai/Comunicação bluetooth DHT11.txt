@@ -1,0 +1,106 @@
+#include <BluetoothSerial.h>
+#include <DHT11.h>
+
+#define USE_NAME  // Comente isso para usar o endereço MAC em vez do nome do dispositivo
+
+BluetoothSerial SerialBT;
+
+#ifdef USE_NAME
+String slaveName = "ESP32-gg-Slave";  // Nome do dispositivo Bluetooth
+#else
+String MACadd = "a8:42:e3:45:64:c6";  // Apenas para exibição do endereço MAC
+uint8_t address[6] = {0xa8, 0x42, 0xe3, 0x45, 0x64, 0xc6};  // Endereço MAC real do dispositivo
+#endif
+
+String myName = "A25 de Gabriel";  // Nome do dispositivo local
+
+#define DHT_PIN 13
+DHT11 dht11(DHT_PIN);  // Inicializa o sensor DHT11 no pino 13
+
+void setup() {
+  bool connected;
+  Serial.begin(115200);  // Inicializa a comunicação serial
+
+  // Inicia o Bluetooth com o nome do dispositivo
+  if (!SerialBT.begin("ESP32-gg-Slave")) {  // Certifique-se de que está usando esse nome
+    Serial.println("Falha ao iniciar o Bluetooth.");
+  } else {
+    Serial.println("Bluetooth iniciado com sucesso!");
+  }
+
+  // Tenta conectar ao dispositivo escravo Bluetooth
+  #ifdef USE_NAME
+  connected = SerialBT.connect(slaveName);
+  Serial.printf("Conectando ao dispositivo Bluetooth chamado \"%s\"\n", slaveName.c_str());
+  #else
+  connected = SerialBT.connect(address);
+  Serial.print("Conectando ao dispositivo com MAC ");
+  Serial.println(MACadd);
+  #endif
+
+  if (connected) {
+    Serial.println("Conectado com sucesso!");
+  } else {
+    while (!SerialBT.connected(10000)) {
+      Serial.println("Falha na conexão. Certifique-se de que o dispositivo remoto esteja disponível.");
+    }
+  }
+
+  // Reconexão
+  SerialBT.connect();
+  if (connected) {
+    Serial.println("Reconectado com sucesso!");
+  } else {
+    while (!SerialBT.connected(10000)) {
+      Serial.println("Falha ao reconectar.");
+    }
+  }
+
+  // Inicializa o sensor DHT11 (não precisa de begin())
+  Serial.println("DHT11 pronto para leitura.");
+}
+
+void loop() {
+  int temperature = 0;
+  int humidity = 0;
+
+  // Lê a temperatura e a umidade do DHT11
+  int result = dht11.readTemperatureHumidity(temperature, humidity);
+
+  if (result == 0) {
+    // Formatação dos valores para mais casas decimais
+    float tempC = (float)temperature;
+    float hum = (float)humidity;
+    if (tempC >=27) {
+    SerialBT.println("Temperatura elevada!!!");
+    Serial.println("Temperatura elevada!!!");
+    }
+
+    // Convertendo para strings com 2 casas decimais
+    char tempStr[6];  // Buffer para armazenar a temperatura
+    char humStr[6];   // Buffer para armazenar a umidade
+
+    dtostrf(tempC, 4, 2, tempStr);  // Converte para string com 2 casas decimais
+    dtostrf(hum, 4, 2, humStr);    // Converte para string com 2 casas decimais
+
+    // Monta a string com os dados de temperatura e umidade
+    String data = "Temperatura: " + String(tempStr) + " °C, Umidade: " + String(humStr) + " %";
+
+    // Envia os dados via Bluetooth
+    if (SerialBT.connected()) {
+      SerialBT.println(data);  // Envia os dados para o dispositivo conectado via Bluetooth
+      Serial.println(data);     // Exibe os dados no monitor serial para depuração
+    }
+  } else {
+    // Envia uma mensagem de erro caso a leitura falhe
+    String error = "Sensor Error: " + String(DHT11::getErrorString(result));
+    if (SerialBT.connected()) {
+      SerialBT.println(error);
+      Serial.println(error);  // Exibe o erro no monitor serial
+    }
+    
+  }
+
+  // Aguarda 2 segundos entre as leituras
+  delay(2000);
+}
